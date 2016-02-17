@@ -632,6 +632,44 @@
         </jar>
     </target>
 
+    <target name="profile-compiler">
+        <new-kotlinc output="${output}/classes/profile-compiler" moduleName="kotlin-compiler"
+                     jvmArgs="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 -agentpath:/Applications/YourKit.app/Contents/Resources/bin/mac/libyjpagent.jnilib">
+            <src>
+                <include name="core/descriptor.loader.java/src"/>
+                <include name="core/descriptors/src"/>
+                <include name="core/deserialization/src"/>
+                <include name="core/util.runtime/src"/>
+                <include name="compiler/backend/src"/>
+                <include name="compiler/backend-common/src"/>
+                <include name="compiler/builtins-serializer/src"/>
+                <include name="compiler/cli/src"/>
+                <include name="compiler/cli/cli-common/src"/>
+                <include name="compiler/conditional-preprocessor/src/"/>
+                <include name="compiler/container/src"/>
+                <include name="compiler/frontend/src"/>
+                <include name="compiler/resolution/src"/>
+                <include name="compiler/frontend.java/src"/>
+                <include name="compiler/light-classes/src"/>
+                <include name="compiler/plugin-api/src"/>
+                <include name="compiler/daemon/src"/>
+                <include name="compiler/daemon/daemon-common/src"/>
+                <include name="compiler/serialization/src"/>
+                <include name="compiler/util/src"/>
+                <include name="js/js.dart-ast/src"/>
+                <include name="js/js.translator/src"/>
+                <include name="js/js.frontend/src"/>
+                <include name="js/js.inliner/src"/>
+                <include name="js/js.parser/src"/>
+                <include name="js/js.serializer/src"/>
+                <include name="plugins/annotation-collector/src"/>
+            </src>
+            <class-path>
+                <path refid="classpath"/>
+            </class-path>
+        </new-kotlinc>
+    </target>
+
     <target name="kotlin-build-common">
         <cleandir dir="${output}/classes/kotlin-build-common"/>
 
@@ -806,6 +844,7 @@
     <macrodef name="new-kotlinc">
         <attribute name="output"/>
         <attribute name="moduleName"/>
+        <attribute name="jvmArgs" default=""/>
         <attribute name="additionalOptions" default=""/>
         <element name="src"/>
         <element name="class-path"/>
@@ -832,6 +871,7 @@
                 <assertions>
                     <enable/>
                 </assertions>
+                <jvmarg line="@{jvmArgs}"/>
                 <arg value="-cp"/>
                 <arg value="${kotlin-home}/lib/kotlin-compiler.jar"/>
                 <arg value="org.jetbrains.kotlin.cli.jvm.K2JVMCompiler"/>
