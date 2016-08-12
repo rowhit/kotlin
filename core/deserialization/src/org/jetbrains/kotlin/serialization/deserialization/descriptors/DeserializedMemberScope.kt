@@ -24,8 +24,8 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.MemberScopeImpl
 import org.jetbrains.kotlin.serialization.ProtoBuf
 import org.jetbrains.kotlin.serialization.deserialization.DeserializationContext
-import org.jetbrains.kotlin.storage.getValue
 import org.jetbrains.kotlin.serialization.deserialization.receiverType
+import org.jetbrains.kotlin.storage.getValue
 import org.jetbrains.kotlin.utils.Printer
 import org.jetbrains.kotlin.utils.toReadOnlyList
 import java.util.*
@@ -37,16 +37,18 @@ abstract class DeserializedMemberScope protected constructor(
         typeAliasList: Collection<ProtoBuf.TypeAlias>
 ) : MemberScopeImpl() {
 
-    private data class ProtoKey(val name: Name, val isExtension: Boolean)
+    protected data class ProtoKey(val name: Name, val isExtension: Boolean)
 
-    private val functionProtos by
+    protected val functionProtos by
             c.storageManager.createLazyValue {
                 groupByKey(functionList, { it.name }) { it.receiverType(c.typeTable) != null }
             }
+
     protected val propertyProtos by
             c.storageManager.createLazyValue {
                 groupByKey(propertyList, { it.name }) { it.receiverType(c.typeTable) != null }
             }
+
     private val typeAliasProtos by
             c.storageManager.createLazyValue {
                 typeAliasList.groupBy { c.nameResolver.getName(it.name) }
@@ -89,7 +91,10 @@ abstract class DeserializedMemberScope protected constructor(
     protected open fun computeNonDeclaredFunctions(name: Name, functions: MutableCollection<SimpleFunctionDescriptor>) {
     }
 
-    override fun getContributedFunctions(name: Name, location: LookupLocation): Collection<SimpleFunctionDescriptor> = functions(name)
+    override fun getContributedFunctions(name: Name, location: LookupLocation): Collection<SimpleFunctionDescriptor> {
+        if (!hasFunctionWithName(name, location)) return emptyList()
+        return functions(name)
+    }
 
     private fun computeProperties(name: Name): Collection<PropertyDescriptor> {
         val protos = propertyProtos[ProtoKey(name, isExtension = false)].orEmpty() +
@@ -115,9 +120,15 @@ abstract class DeserializedMemberScope protected constructor(
         return descriptors.toReadOnlyList()
     }
 
-    override fun getContributedVariables(name: Name, location: LookupLocation): Collection<PropertyDescriptor> = properties(name)
+    override fun getContributedVariables(name: Name, location: LookupLocation): Collection<PropertyDescriptor> {
+        if (!hasPropertyWithName(name, location)) return emptyList()
+        return properties(name)
+    }
 
-    protected fun getContributedTypeAliases(name: Name): Collection<TypeAliasDescriptor> = typeAliases(name)
+    protected fun getContributedTypeAliases(name: Name): Collection<TypeAliasDescriptor> {
+        if (name !in typeAliasNames) return emptyList()
+        return typeAliases(name)
+    }
 
     protected abstract fun addClassifierDescriptors(result: MutableCollection<DeclarationDescriptor>, nameFilter: (Name) -> Boolean)
 

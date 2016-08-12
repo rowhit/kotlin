@@ -59,6 +59,11 @@ open class DeserializedPackageMemberScope(
     private fun getClassDescriptor(name: Name): ClassDescriptor? =
             c.components.deserializeClass(ClassId(packageFqName, name))
 
+    override fun hasFunctionWithName(name: Name, location: LookupLocation) =
+            functionProtos.containsKey(ProtoKey(name, true)) || functionProtos.containsKey(ProtoKey(name, false))
+    override fun hasPropertyWithName(name: Name, location: LookupLocation) =
+            propertyProtos.containsKey(ProtoKey(name, true)) || propertyProtos.containsKey(ProtoKey(name, false))
+
     override fun addClassifierDescriptors(result: MutableCollection<DeclarationDescriptor>, nameFilter: (Name) -> Boolean) {
         for (className in classNames) {
             if (nameFilter(className)) {

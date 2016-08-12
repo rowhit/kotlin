@@ -213,6 +213,14 @@ class DeserializedClassDescriptor(
             return super.getContributedVariables(name, location)
         }
 
+//        override fun hasFunctionWithName(name: Name, location: LookupLocation) =
+//                super.hasFunctionWithName(name, location) ||
+//                MemberScope.hasFunctionWithNameInSupertypes(classDescriptor, name, location)
+//
+//        override fun hasPropertyWithName(name: Name, location: LookupLocation) =
+//                super.hasPropertyWithName(name, location) ||
+//                MemberScope.hasPropertyWithNameInSupertypes(classDescriptor, name, location)
+
         override fun computeNonDeclaredFunctions(name: Name, functions: MutableCollection<SimpleFunctionDescriptor>) {
             val fromSupertypes = ArrayList<SimpleFunctionDescriptor>()
             for (supertype in classDescriptor.getTypeConstructor().supertypes) {
