@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.MemberScopeImpl
 import org.jetbrains.kotlin.serialization.ProtoBuf
 import org.jetbrains.kotlin.serialization.deserialization.DeserializationContext
+import org.jetbrains.kotlin.storage.getValue
 import org.jetbrains.kotlin.serialization.deserialization.receiverType
 import org.jetbrains.kotlin.utils.Printer
 import org.jetbrains.kotlin.utils.toReadOnlyList
@@ -38,19 +39,19 @@ abstract class DeserializedMemberScope protected constructor(
 
     private data class ProtoKey(val name: Name, val isExtension: Boolean)
 
-    private val functionProtos =
+    private val functionProtos by
             c.storageManager.createLazyValue {
                 groupByKey(functionList, { it.name }) { it.receiverType(c.typeTable) != null }
             }
-    private val propertyProtos =
+    protected val propertyProtos by
             c.storageManager.createLazyValue {
                 groupByKey(propertyList, { it.name }) { it.receiverType(c.typeTable) != null }
             }
-    private val typeAliasProtos =
+    private val typeAliasProtos by
             c.storageManager.createLazyValue {
                 typeAliasList.groupBy { c.nameResolver.getName(it.name) }
             }
-    protected val typeAliasNames =
+    protected val typeAliasNames by
             c.storageManager.createLazyValue {
                 typeAliasList.map { c.nameResolver.getName(it.name) }
             }
@@ -74,8 +75,8 @@ abstract class DeserializedMemberScope protected constructor(
     }
 
     private fun computeFunctions(name: Name): Collection<SimpleFunctionDescriptor> {
-        val protos = functionProtos()[ProtoKey(name, isExtension = false)].orEmpty() +
-                     functionProtos()[ProtoKey(name, isExtension = true)].orEmpty()
+        val protos = functionProtos[ProtoKey(name, isExtension = false)].orEmpty() +
+                     functionProtos[ProtoKey(name, isExtension = true)].orEmpty()
 
         val descriptors = protos.mapTo(linkedSetOf()) {
             c.memberDeserializer.loadFunction(it)
@@ -91,8 +92,8 @@ abstract class DeserializedMemberScope protected constructor(
     override fun getContributedFunctions(name: Name, location: LookupLocation): Collection<SimpleFunctionDescriptor> = functions(name)
 
     private fun computeProperties(name: Name): Collection<PropertyDescriptor> {
-        val protos = propertyProtos()[ProtoKey(name, isExtension = false)].orEmpty() +
-                     propertyProtos()[ProtoKey(name, isExtension = true)].orEmpty()
+        val protos = propertyProtos[ProtoKey(name, isExtension = false)].orEmpty() +
+                     propertyProtos[ProtoKey(name, isExtension = true)].orEmpty()
 
         val descriptors = protos.mapTo(linkedSetOf()) {
             c.memberDeserializer.loadProperty(it)
@@ -106,7 +107,7 @@ abstract class DeserializedMemberScope protected constructor(
     }
 
     private fun computeTypeAliases(name: Name): Collection<TypeAliasDescriptor> {
-        val protos = typeAliasProtos()[name].orEmpty()
+        val protos = typeAliasProtos[name].orEmpty()
         val descriptors = protos.mapTo(linkedSetOf()) {
             c.memberDeserializer.loadTypeAlias(it)
         }
@@ -154,12 +155,12 @@ abstract class DeserializedMemberScope protected constructor(
             location: LookupLocation
     ) {
         if (kindFilter.acceptsKinds(DescriptorKindFilter.VARIABLES_MASK)) {
-            val keys = propertyProtos().keys.filter { nameFilter(it.name) }
+            val keys = propertyProtos.keys.filter { nameFilter(it.name) }
             addMembers(result, keys) { getContributedVariables(it, location) }
         }
 
         if (kindFilter.acceptsKinds(DescriptorKindFilter.FUNCTIONS_MASK)) {
-            val keys = functionProtos().keys.filter { nameFilter(it.name) }
+            val keys = functionProtos.keys.filter { nameFilter(it.name) }
             addMembers(result, keys) { getContributedFunctions(it, location) }
         }
     }
