@@ -33,6 +33,7 @@
 package org.jetbrains.kotlin.storage
 
 import org.jetbrains.kotlin.storage.StorageUtils.NotValue
+import org.jetbrains.kotlin.utils.SmartMap
 
 class LocklessStorageManager(val recursionFallThrough: Boolean = false) : StorageManager {
     override fun <K, V : Any> createMemoizedFunction(compute: (K) -> V) = LocklessMemoizedFunctionToNotNull<K, V>(compute)
@@ -63,7 +64,7 @@ class LocklessStorageManager(val recursionFallThrough: Boolean = false) : Storag
 }
 
 class LocklessMemoizedFunctionToNullable<in P, out R : Any>(private val compute: (P) -> R?) : MemoizedFunctionToNullable<P, R> {
-    private val map = hashMapOf<P, Any>()
+    private val map = SmartMap.create<P, Any>()
 
     override fun isComputed(key: P): Boolean {
         val value = map[key]
@@ -87,7 +88,7 @@ class LocklessMemoizedFunctionToNullable<in P, out R : Any>(private val compute:
 }
 
 class LocklessMemoizedFunctionToNotNull<in P, out R : Any>(private val compute: (P) -> R) : MemoizedFunctionToNotNull<P, R> {
-    private val map = hashMapOf<P, Any>()
+    private val map = SmartMap.create<P, Any>()
 
     override fun isComputed(key: P): Boolean {
         val value = map[key]
