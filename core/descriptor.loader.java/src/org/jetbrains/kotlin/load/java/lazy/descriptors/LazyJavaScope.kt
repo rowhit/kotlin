@@ -214,7 +214,10 @@ abstract class LazyJavaScope(protected val c: LazyJavaResolverContext) : MemberS
         return ResolvedValueParameters(descriptors, synthesizedNames)
     }
 
-    override fun getContributedFunctions(name: Name, location: LookupLocation): Collection<SimpleFunctionDescriptor> = functions(name)
+    override fun getContributedFunctions(name: Name, location: LookupLocation): Collection<SimpleFunctionDescriptor> {
+        if (!hasFunctionWithName(name, location)) return emptyList()
+        return functions(name)
+    }
 
     protected open fun getFunctionNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<Name>
             = memberIndex().getMethodNames(nameFilter)
@@ -288,7 +291,10 @@ abstract class LazyJavaScope(protected val c: LazyJavaResolverContext) : MemberS
         return propertyType
     }
 
-    override fun getContributedVariables(name: Name, location: LookupLocation): Collection<PropertyDescriptor> = properties(name)
+    override fun getContributedVariables(name: Name, location: LookupLocation): Collection<PropertyDescriptor> {
+        if (!hasPropertyWithName(name, location)) return emptyList()
+        return properties(name)
+    }
 
     override fun getContributedDescriptors(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean) = allDescriptors()
 

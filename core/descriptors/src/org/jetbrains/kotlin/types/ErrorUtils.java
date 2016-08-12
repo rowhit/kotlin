@@ -200,6 +200,16 @@ public class ErrorUtils {
             return Collections.singleton(createErrorFunction(this));
         }
 
+        @Override
+        public boolean hasFunctionWithName(@NotNull Name name, @NotNull LookupLocation location) {
+            return false;
+        }
+
+        @Override
+        public boolean hasPropertyWithName(@NotNull Name name, @NotNull LookupLocation location) {
+            return false;
+        }
+
         @NotNull
         @Override
         public Collection<DeclarationDescriptor> getContributedDescriptors(
@@ -253,6 +263,16 @@ public class ErrorUtils {
         public Collection<DeclarationDescriptor> getContributedDescriptors(
                 @NotNull DescriptorKindFilter kindFilter, @NotNull Function1<? super Name, Boolean> nameFilter
         ) {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public boolean hasFunctionWithName(@NotNull Name name, @NotNull LookupLocation location) {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public boolean hasPropertyWithName(@NotNull Name name, @NotNull LookupLocation location) {
             throw new IllegalStateException();
         }
 

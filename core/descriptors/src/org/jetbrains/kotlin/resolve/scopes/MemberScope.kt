@@ -28,6 +28,9 @@ interface MemberScope : ResolutionScope {
     override fun getContributedVariables(name: Name, location: LookupLocation): Collection<PropertyDescriptor>
     override fun getContributedFunctions(name: Name, location: LookupLocation): Collection<SimpleFunctionDescriptor>
 
+    fun hasFunctionWithName(name: Name, location: LookupLocation): Boolean = true
+    fun hasPropertyWithName(name: Name, location: LookupLocation) = true
+
     /**
      * Is supposed to be used in tests and debug only
      */
@@ -37,10 +40,21 @@ interface MemberScope : ResolutionScope {
         override fun printScopeStructure(p: Printer) {
             p.println("Empty member scope")
         }
+
+        override fun hasFunctionWithName(name: Name, location: LookupLocation) = false
+        override fun hasPropertyWithName(name: Name, location: LookupLocation) = false
     }
 
     companion object {
         val ALL_NAME_FILTER: (Name) -> Boolean = { true }
+
+        fun hasFunctionWithNameInSupertypes(classDescriptor: ClassDescriptor, name: Name, location: LookupLocation) = classDescriptor.typeConstructor.supertypes.any {
+            it.memberScope.hasFunctionWithName(name, location)
+        }
+
+        fun hasPropertyWithNameInSupertypes(classDescriptor: ClassDescriptor, name: Name, location: LookupLocation) = classDescriptor.typeConstructor.supertypes.any {
+            it.memberScope.hasPropertyWithName(name, location)
+        }
     }
 }
 

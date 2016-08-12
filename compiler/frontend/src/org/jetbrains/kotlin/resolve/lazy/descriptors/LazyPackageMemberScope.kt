@@ -50,6 +50,9 @@ class LazyPackageMemberScope(
         // No extra properties
     }
 
+    override fun hasFunctionWithName(name: Name, location: LookupLocation) = declarationProvider.getFunctionDeclarations(name).isNotEmpty()
+    override fun hasPropertyWithName(name: Name, location: LookupLocation) = declarationProvider.getPropertyDeclarations(name).isNotEmpty()
+
     override fun recordLookup(name: Name, from: LookupLocation) {
         c.lookupTracker.record(from, thisDescriptor, name)
     }
