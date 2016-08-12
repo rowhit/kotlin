@@ -161,6 +161,9 @@ class LazyJavaPackageScope(
 
     override fun getPropertyNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean) = listOf<Name>()
 
+    override fun hasFunctionWithName(name: Name, location: LookupLocation) = getContributedClassifier(name, location) != null
+    override fun hasPropertyWithName(name: Name, location: LookupLocation) = false
+
     // we don't use implementation from super which caches all descriptors and does not use filters
     override fun getContributedDescriptors(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<DeclarationDescriptor> {
         return computeDescriptors(kindFilter, nameFilter, NoLookupLocation.WHEN_GET_ALL_DESCRIPTORS)
