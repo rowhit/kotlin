@@ -16,24 +16,26 @@
 
 package org.jetbrains.kotlin.storage
 
+import com.intellij.util.containers.ContainerUtil
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.diagnostics.Diagnostic
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.BindingTrace
+import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
+import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.util.slicedMap.ReadOnlySlice
 import org.jetbrains.kotlin.util.slicedMap.WritableSlice
-import org.jetbrains.kotlin.resolve.TraceEntryFilter
-import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
-import com.intellij.util.containers.ContainerUtil
-import org.jetbrains.kotlin.psi.KtExpression
-import org.jetbrains.kotlin.types.KotlinType
+import java.util.concurrent.ConcurrentMap
 
 class LockBasedLazyResolveStorageManager(private val storageManager: StorageManager): StorageManager by storageManager, LazyResolveStorageManager {
     override fun <K, V : Any> createSoftlyRetainedMemoizedFunction(compute: Function1<K, V>) =
-        storageManager.createMemoizedFunction<K, V>(compute, ContainerUtil.createConcurrentSoftValueMap<K, Any>())
+        storageManager.createMemoizedFunction(compute)
+
+    override fun <K, V : Any> buildNewMap(): ConcurrentMap<K, V> = ContainerUtil.createConcurrentSoftValueMap()
 
     override fun <K, V : Any> createSoftlyRetainedMemoizedFunctionWithNullableValues(compute: Function1<K, V>) =
-        storageManager.createMemoizedFunctionWithNullableValues<K, V>(compute, ContainerUtil.createConcurrentSoftValueMap<K, Any>())
+        storageManager.createMemoizedFunctionWithNullableValues(compute)
 
     override fun createSafeTrace(originalTrace: BindingTrace): BindingTrace =
             LockProtectedTrace(storageManager, originalTrace)
