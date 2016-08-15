@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.utils.WrappedValues;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
@@ -101,32 +102,18 @@ public class LockBasedStorageManager implements StorageManager {
 
     @NotNull
     @Override
-    public <K, V> MemoizedFunctionToNotNull<K, V> createMemoizedFunction(@NotNull Function1<? super K, ? extends V> compute) {
-        return createMemoizedFunction(compute, LockBasedStorageManager.<K>createConcurrentHashMap());
-    }
-
-    @NotNull
-    @Override
     public <K, V> MemoizedFunctionToNotNull<K, V> createMemoizedFunction(
-            @NotNull Function1<? super K, ? extends V> compute,
-            @NotNull ConcurrentMap<K, Object> map
+            @NotNull Function1<? super K, ? extends V> compute
     ) {
-        return new MapBasedMemoizedFunctionToNotNull<K, V>(this, map, compute);
-    }
-
-    @NotNull
-    @Override
-    public <K, V> MemoizedFunctionToNullable<K, V> createMemoizedFunctionWithNullableValues(@NotNull Function1<? super K, ? extends V> compute) {
-        return createMemoizedFunctionWithNullableValues(compute, LockBasedStorageManager.<K>createConcurrentHashMap());
+        return new MapBasedMemoizedFunctionToNotNull<K, V>(this, compute);
     }
 
     @Override
     @NotNull
     public  <K, V> MemoizedFunctionToNullable<K, V> createMemoizedFunctionWithNullableValues(
-            @NotNull Function1<? super K, ? extends V> compute,
-            @NotNull ConcurrentMap<K, Object> map
+            @NotNull Function1<? super K, ? extends V> compute
     ) {
-        return new MapBasedMemoizedFunction<K, V>(this, map, compute);
+        return new MapBasedMemoizedFunction<K, V>(this, compute);
     }
 
     @NotNull
@@ -219,9 +206,9 @@ public class LockBasedStorageManager implements StorageManager {
     }
 
     @NotNull
-    private static <K> ConcurrentMap<K, Object> createConcurrentHashMap() {
-        // memory optimization: fewer segments and entries stored
-        return new ConcurrentHashMap<K, Object>(3, 1, 2);
+    @Override
+    public <K, V> ConcurrentMap<K, V> buildNewMap() {
+        return new ConcurrentHashMap<K, V>(3, 1, 2);
     }
 
     @NotNull
@@ -369,28 +356,29 @@ public class LockBasedStorageManager implements StorageManager {
 
     private static class MapBasedMemoizedFunction<K, V> implements MemoizedFunctionToNullable<K, V> {
         private final LockBasedStorageManager storageManager;
-        private final ConcurrentMap<K, Object> cache;
+        private volatile Object cache = null;
         private final Function1<? super K, ? extends V> compute;
 
         public MapBasedMemoizedFunction(
                 @NotNull LockBasedStorageManager storageManager,
-                @NotNull ConcurrentMap<K, Object> map,
                 @NotNull Function1<? super K, ? extends V> compute
         ) {
             this.storageManager = storageManager;
-            this.cache = map;
             this.compute = compute;
         }
 
         @Override
         @Nullable
         public V invoke(K input) {
-            Object value = cache.get(input);
+            int hashCode = input.hashCode();
+            Object value;
+            value = tryReadResult(input, this.cache, hashCode);
+
             if (value != null && value != NotValue.COMPUTING) return WrappedValues.unescapeExceptionOrNull(value);
 
             storageManager.lock.lock();
             try {
-                value = cache.get(input);
+                value = tryReadResult(input, this.cache, hashCode);
                 if (value == NotValue.COMPUTING) {
                     throw recursionDetected(input);
                 }
@@ -398,28 +386,26 @@ public class LockBasedStorageManager implements StorageManager {
 
                 AssertionError error = null;
                 try {
-                    cache.put(input, NotValue.COMPUTING);
+                    putResult(input, hashCode, NotValue.COMPUTING);
                     V typedValue = compute.invoke(input);
-                    Object oldValue = cache.put(input, WrappedValues.escapeNull(typedValue));
+                    putResult(input, hashCode, WrappedValues.escapeNull(typedValue));
 
-                    // This code effectively asserts that oldValue is null
-                    // The trickery is here because below we catch all exceptions thrown here, and this is the only exception that shouldn't be stored
-                    // A seemingly obvious way to come about this case would be to declare a special exception class, but the problem is that
-                    // one memoized function is likely to (indirectly) call another, and if this second one throws this exception, we are screwed
-                    if (oldValue != NotValue.COMPUTING) {
-                        error = raceCondition(input, oldValue);
-                        throw error;
-                    }
+                    //// This code effectively asserts that oldValue is null
+                    //// The trickery is here because below we catch all exceptions thrown here, and this is the only exception that shouldn't be stored
+                    //// A seemingly obvious way to come about this case would be to declare a special exception class, but the problem is that
+                    //// one memoized function is likely to (indirectly) call another, and if this second one throws this exception, we are screwed
+                    //if (oldValue != NotValue.COMPUTING) {
+                    //    error = raceCondition(input, oldValue);
+                    //    throw error;
+                    //}
 
                     return typedValue;
                 }
                 catch (Throwable throwable) {
-                    if (throwable == error) throw storageManager.exceptionHandlingStrategy.handleException(throwable);
-
-                    Object oldValue = cache.put(input, WrappedValues.escapeThrowable(throwable));
-                    if (oldValue != NotValue.COMPUTING) {
-                        throw raceCondition(input, oldValue);
-                    }
+                    //Object oldValue = putResult(input, hashCode, WrappedValues.escapeThrowable(throwable));
+                    //if (oldValue != NotValue.COMPUTING) {
+                    //    throw raceCondition(input, oldValue);
+                    //}
 
                     throw storageManager.exceptionHandlingStrategy.handleException(throwable);
                 }
@@ -427,6 +413,88 @@ public class LockBasedStorageManager implements StorageManager {
             finally {
                 storageManager.lock.unlock();
             }
+        }
+
+        private void putResult(K input, int hashCode, Object result) {
+            if (cache == null) {
+                cache = new Object[4];
+            }
+
+            Object localCache = cache;
+            l1: while (localCache instanceof Object[]) {
+                Object[] cacheArray = (Object[]) localCache;
+                int keysCount = cacheArray.length / 2;
+                int offset = offsetForHashKey(hashCode, keysCount);
+                if (cacheArray[offset] == null) {
+                    cacheArray[offset] = input;
+                    cacheArray[offset + 1] = result;
+                    // Volatile write
+                    this.cache = localCache;
+                    this.cache = cache;
+                    return;
+                }
+
+                int nextSize;
+                switch (keysCount * 2) {
+                    case 4: nextSize = 16; break;
+                    case 20: nextSize = 32; break;
+                    default: {
+                        ConcurrentMap<Object, Object> newMap = storageManager.buildNewMap();
+                        for (int i = 0; i < keysCount; i++) {
+                            if (cacheArray[2 * i] == null) continue;
+                            newMap.put(cacheArray[2 * i], cacheArray[2 * i + 1]);
+                        }
+                        localCache = newMap;
+                        cache = newMap;
+                        break l1;
+                    }
+                }
+
+                Object[] newCache = new Object[nextSize];
+
+                int newKeysCount = nextSize / 2;
+                for (int i = 0; i < keysCount; i++) {
+                    if (cacheArray[2 * i] == null) continue;
+                    int tmpHashCode = cacheArray[2 * i].hashCode();
+                    newCache[offsetForHashKey(tmpHashCode, newKeysCount)] = cacheArray[2 * i];
+                    newCache[offsetForHashKey(tmpHashCode, newKeysCount) + 1] = cacheArray[2 * i + 1];
+                }
+
+                localCache = newCache;
+            }
+
+            assert localCache instanceof Map<?, ?> : "local cache here must be a Map";
+            ((Map) localCache).put(input, result);
+        }
+
+        private static int offsetForHashKey(int hashCode, int keysCount) {
+            return indexFor(hash(hashCode), keysCount) * 2;
+        }
+
+        // From JDK
+        private static int hash(int h) {
+            h ^= (h >>> 20) ^ (h >>> 12);
+            return h ^ (h >>> 7) ^ (h >>> 4);
+        }
+
+        private static int indexFor(int h, int length) {
+            return h & (length-1);
+        }
+
+        @Nullable
+        private static Object tryReadResult(Object input, Object localCache, int hashCode) {
+            Object value = null;
+            if (localCache instanceof Object[]) {
+                int keysCount = ((Object[]) localCache).length / 2;
+                int offset = offsetForHashKey(hashCode, keysCount);
+                if (((Object[]) localCache)[offset] != null && ((Object[]) localCache)[offset].equals(input)) {
+                    value = ((Object[]) localCache)[offset + 1];
+                }
+            }
+            else if (localCache instanceof Map<?, ?>) {
+                value = ((Map) localCache).get(input);
+            }
+            return value;
         }
 
         @NotNull
@@ -446,8 +514,7 @@ public class LockBasedStorageManager implements StorageManager {
 
         @Override
         public boolean isComputed(K key) {
-            Object value = cache.get(key);
-            return value != null && value != NotValue.COMPUTING;
+            return false;
         }
 
         protected LockBasedStorageManager getStorageManager() {
@@ -458,10 +525,10 @@ public class LockBasedStorageManager implements StorageManager {
     private static class MapBasedMemoizedFunctionToNotNull<K, V> extends MapBasedMemoizedFunction<K, V> implements MemoizedFunctionToNotNull<K, V> {
 
         public MapBasedMemoizedFunctionToNotNull(
-                @NotNull LockBasedStorageManager storageManager, @NotNull ConcurrentMap<K, Object> map,
+                @NotNull LockBasedStorageManager storageManager,
                 @NotNull Function1<? super K, ? extends V> compute
         ) {
-            super(storageManager, map, compute);
+            super(storageManager, compute);
         }
 
         @NotNull
@@ -505,17 +572,15 @@ public class LockBasedStorageManager implements StorageManager {
     @NotNull
     @Override
     public <K, V> CacheWithNullableValues<K, V> createCacheWithNullableValues() {
-        return new CacheWithNullableValuesBasedOnMemoizedFunction<K, V>(
-                this, LockBasedStorageManager.<KeyWithComputation<K,V>>createConcurrentHashMap());
+        return new CacheWithNullableValuesBasedOnMemoizedFunction<K, V>(this);
     }
 
     private static class CacheWithNullableValuesBasedOnMemoizedFunction<K, V> extends MapBasedMemoizedFunction<KeyWithComputation<K, V>, V> implements CacheWithNullableValues<K, V> {
 
         private CacheWithNullableValuesBasedOnMemoizedFunction(
-                @NotNull LockBasedStorageManager storageManager,
-                @NotNull ConcurrentMap<KeyWithComputation<K, V>, Object> map
+                @NotNull LockBasedStorageManager storageManager
         ) {
-            super(storageManager, map, new Function1<KeyWithComputation<K, V>, V>() {
+            super(storageManager, new Function1<KeyWithComputation<K, V>, V>() {
                 @Override
                 public V invoke(KeyWithComputation<K, V> computation) {
                     return computation.computation.invoke();
@@ -533,16 +598,15 @@ public class LockBasedStorageManager implements StorageManager {
     @NotNull
     @Override
     public <K, V> CacheWithNotNullValues<K, V> createCacheWithNotNullValues() {
-        return new CacheWithNotNullValuesBasedOnMemoizedFunction<K, V>(this, LockBasedStorageManager.<KeyWithComputation<K,V>>createConcurrentHashMap());
+        return new CacheWithNotNullValuesBasedOnMemoizedFunction<K, V>(this);
     }
 
     private static class CacheWithNotNullValuesBasedOnMemoizedFunction<K, V> extends CacheWithNullableValuesBasedOnMemoizedFunction<K, V> implements CacheWithNotNullValues<K, V> {
 
         private CacheWithNotNullValuesBasedOnMemoizedFunction(
-                @NotNull LockBasedStorageManager storageManager,
-                @NotNull ConcurrentMap<KeyWithComputation<K, V>, Object> map
+                @NotNull LockBasedStorageManager storageManager
         ) {
-            super(storageManager, map);
+            super(storageManager);
         }
 
         @NotNull
