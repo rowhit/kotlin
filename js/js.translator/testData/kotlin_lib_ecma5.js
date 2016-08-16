@@ -382,11 +382,15 @@
         }
 
         // In WebKit (JavaScriptCore) for some interfaces from DOM typeof returns "object", nevertheless they can be used in RHS of instanceof
-        if (klass.$metadata$ == null) {
+        if (isNativeClass(klass)) {
             return object instanceof klass;
         }
 
-        return isInheritanceFromTrait(object.constructor.$metadata$, klass);
+        if (object.constructor != null) {
+            return isInheritanceFromTrait(object.constructor.$metadata$, klass);
+        }
+
+        return false;
     };
 
     // TODO Store callable references for members in class

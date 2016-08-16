@@ -77,6 +77,12 @@ public class RttiTestGenerated extends AbstractRttiTest {
         doTest(fileName);
     }
 
+    @TestMetadata("onNativeObject.kt")
+    public void testOnNativeObject() throws Exception {
+        String fileName = KotlinTestUtils.navigationMetadata("js/js.translator/testData/rtti/cases/onNativeObject.kt");
+        doTest(fileName);
+    }
+
     @TestMetadata("rttiForClass.kt")
     public void testRttiForClass() throws Exception {
         String fileName = KotlinTestUtils.navigationMetadata("js/js.translator/testData/rtti/cases/rttiForClass.kt");
