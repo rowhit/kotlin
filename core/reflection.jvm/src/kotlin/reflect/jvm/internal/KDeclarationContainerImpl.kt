@@ -47,7 +47,7 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
 
     abstract fun getFunctions(name: Name): Collection<FunctionDescriptor>
 
-    fun getMembers(scope: MemberScope, declaredOnly: Boolean): Sequence<KCallableImpl<*>> {
+    protected fun getMembers(scope: MemberScope, belonginess: MemberBelonginess): Sequence<KCallableImpl<*>> {
         val visitor = object : DeclarationDescriptorVisitorEmptyBodies<KCallableImpl<*>, Unit>() {
             override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: Unit): KCallableImpl<*> =
                     createProperty(descriptor)
@@ -61,12 +61,18 @@ internal abstract class KDeclarationContainerImpl : ClassBasedDeclarationContain
 
         return scope.getContributedDescriptors().asSequence()
                 .filter { descriptor ->
-                    descriptor is CallableMemberDescriptor && descriptor.visibility != Visibilities.INVISIBLE_FAKE
-                    && (!declaredOnly || descriptor.kind.isReal)
+                    descriptor is CallableMemberDescriptor &&
+                    descriptor.visibility != Visibilities.INVISIBLE_FAKE &&
+                    descriptor.kind.isReal == (belonginess == MemberBelonginess.DECLARED)
                 }
                 .mapNotNull { descriptor ->
                     descriptor.accept(visitor, Unit)
                 }
+    }
+
+    protected enum class MemberBelonginess {
+        DECLARED,
+        INHERITED,
     }
 
     private fun createProperty(descriptor: PropertyDescriptor): KPropertyImpl<*> {

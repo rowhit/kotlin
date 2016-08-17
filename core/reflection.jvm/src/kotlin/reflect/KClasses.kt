@@ -70,8 +70,7 @@ val KClass<*>.defaultType: KType
  * Does not include members declared in supertypes.
  */
 val KClass<*>.declaredMembers: Collection<KCallable<*>>
-    get() = with((this as KClassImpl).data()) { declaredNonStaticMembers + declaredStaticMembers }
-            .toList()
+    get() = (this as KClassImpl).data().declaredMembers.toList()
 
 /**
  * Returns all functions declared in this class, including all non-static methods declared in the class
@@ -112,7 +111,7 @@ val KClass<*>.memberExtensionFunctions: Collection<KFunction<*>>
  * declared in the class and the superclasses, as well as static methods declared in the class.
  */
 val KClass<*>.declaredFunctions: Collection<KFunction<*>>
-    get() = with((this as KClassImpl).data()) { declaredNonStaticMembers + declaredStaticMembers }
+    get() = (this as KClassImpl).data().declaredMembers
             .filterIsInstance<KFunction<*>>()
             .toList()
 

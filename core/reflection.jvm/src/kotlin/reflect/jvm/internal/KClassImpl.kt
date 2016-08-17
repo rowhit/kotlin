@@ -32,6 +32,8 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.serialization.deserialization.findClassAcrossModuleDependencies
 import kotlin.jvm.internal.TypeIntrinsics
 import kotlin.reflect.*
+import kotlin.reflect.jvm.internal.KDeclarationContainerImpl.MemberBelonginess.DECLARED
+import kotlin.reflect.jvm.internal.KDeclarationContainerImpl.MemberBelonginess.INHERITED
 
 internal class KClassImpl<T : Any>(override val jClass: Class<T>) :
         KDeclarationContainerImpl(), KClass<T>, KClassifierImpl, KAnnotatedElementImpl {
@@ -61,14 +63,18 @@ internal class KClassImpl<T : Any>(override val jClass: Class<T>) :
             field.get(null) as T
         }
 
-        val allNonStaticMembers: Sequence<KCallableImpl<*>>
-                by ReflectProperties.lazySoft { getMembers(memberScope, declaredOnly = false) }
-        val allStaticMembers: Sequence<KCallableImpl<*>>
-                by ReflectProperties.lazySoft { getMembers(staticScope, declaredOnly = false) }
         val declaredNonStaticMembers: Sequence<KCallableImpl<*>>
-                by ReflectProperties.lazySoft { getMembers(memberScope, declaredOnly = true) }
+                by ReflectProperties.lazySoft { getMembers(memberScope, DECLARED) }
         val declaredStaticMembers: Sequence<KCallableImpl<*>>
-                by ReflectProperties.lazySoft { getMembers(staticScope, declaredOnly = true) }
+                by ReflectProperties.lazySoft { getMembers(staticScope, DECLARED) }
+        val inheritedNonStaticMembers: Sequence<KCallableImpl<*>>
+                by ReflectProperties.lazySoft { getMembers(memberScope, INHERITED) }
+        val inheritedStaticMembers: Sequence<KCallableImpl<*>>
+                by ReflectProperties.lazySoft { getMembers(staticScope, INHERITED) }
+
+        val allNonStaticMembers: Sequence<KCallableImpl<*>> get() = declaredNonStaticMembers + inheritedNonStaticMembers
+        val allStaticMembers: Sequence<KCallableImpl<*>> get() = declaredStaticMembers + inheritedStaticMembers
+        val declaredMembers: Sequence<KCallableImpl<*>> get() = declaredNonStaticMembers + declaredStaticMembers
 
         val allMembers: Collection<KCallable<*>> by ReflectProperties.lazySoft {
             (allNonStaticMembers + allStaticMembers).toList()
