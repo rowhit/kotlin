@@ -35,7 +35,7 @@ import kotlin.reflect.*
 
 internal class KClassImpl<T : Any>(override val jClass: Class<T>) :
         KDeclarationContainerImpl(), KClass<T>, KClassifierImpl, KAnnotatedElementImpl {
-    private inner class Data : KDeclarationContainerImpl.Data() {
+    inner class Data : KDeclarationContainerImpl.Data() {
         val descriptor: ClassDescriptor by ReflectProperties.lazySoft {
             val classId = classId
             val moduleData = data().moduleData
@@ -60,9 +60,22 @@ internal class KClassImpl<T : Any>(override val jClass: Class<T>) :
             }
             field.get(null) as T
         }
+
+        val allNonStaticMembers: Sequence<KCallableImpl<*>>
+                by ReflectProperties.lazySoft { getMembers(memberScope, declaredOnly = false) }
+        val allStaticMembers: Sequence<KCallableImpl<*>>
+                by ReflectProperties.lazySoft { getMembers(staticScope, declaredOnly = false) }
+        val declaredNonStaticMembers: Sequence<KCallableImpl<*>>
+                by ReflectProperties.lazySoft { getMembers(memberScope, declaredOnly = true) }
+        val declaredStaticMembers: Sequence<KCallableImpl<*>>
+                by ReflectProperties.lazySoft { getMembers(staticScope, declaredOnly = true) }
+
+        val allMembers: Collection<KCallable<*>> by ReflectProperties.lazySoft {
+            (allNonStaticMembers + allStaticMembers).toList()
+        }
     }
 
-    private val data = ReflectProperties.lazy { Data() }
+    val data = ReflectProperties.lazy { Data() }
 
     override val descriptor: ClassDescriptor get() = data().descriptor
 
@@ -74,8 +87,7 @@ internal class KClassImpl<T : Any>(override val jClass: Class<T>) :
 
     internal val staticScope: MemberScope get() = descriptor.staticScope
 
-    override val members: Collection<KCallable<*>>
-        get() = (getMembers(memberScope, declaredOnly = false) + getMembers(staticScope, declaredOnly = false)).toList()
+    override val members: Collection<KCallable<*>> get() = data().allMembers
 
     override val constructorDescriptors: Collection<ConstructorDescriptor>
         get() {

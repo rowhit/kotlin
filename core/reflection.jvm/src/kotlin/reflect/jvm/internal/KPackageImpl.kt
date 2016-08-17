@@ -48,6 +48,15 @@ internal class KPackageImpl(override val jClass: Class<*>, val moduleName: Strin
                 jClass
             }
         }
+
+        val members: Collection<KCallableImpl<*>> by ReflectProperties.lazySoft {
+            getMembers(scope, declaredOnly = false).filter { member ->
+                val callableDescriptor = member.descriptor as DeserializedCallableMemberDescriptor
+                val packageFragment = callableDescriptor.containingDeclaration as PackageFragmentDescriptor
+                val source = (packageFragment as? LazyJavaPackageFragment)?.source as? KotlinJvmBinaryPackageSourceElement
+                (source?.getContainingBinaryClass(callableDescriptor) as? ReflectKotlinClass)?.klass == jClass
+            }.toList()
+        }
     }
 
     private val data = ReflectProperties.lazy { Data() }
@@ -56,13 +65,7 @@ internal class KPackageImpl(override val jClass: Class<*>, val moduleName: Strin
 
     private val scope: MemberScope get() = data().descriptor.memberScope
 
-    override val members: Collection<KCallable<*>>
-        get() = getMembers(scope, declaredOnly = false).filter { member ->
-            val callableDescriptor = member.descriptor as DeserializedCallableMemberDescriptor
-            val packageFragment = callableDescriptor.containingDeclaration as PackageFragmentDescriptor
-            val source = (packageFragment as? LazyJavaPackageFragment)?.source as? KotlinJvmBinaryPackageSourceElement
-            (source?.getContainingBinaryClass(callableDescriptor) as? ReflectKotlinClass)?.klass == jClass
-        }.toList()
+    override val members: Collection<KCallable<*>> get() = data().members
 
     override val constructorDescriptors: Collection<ConstructorDescriptor>
         get() = emptyList()
