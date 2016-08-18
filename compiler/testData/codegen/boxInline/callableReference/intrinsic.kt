@@ -2,7 +2,7 @@
 
 package test
 
-inline fun call(a: String, b: String, s: String.(String) -> String): Int {
+inline fun call(a: String, b: String, s: String.(String) -> String): String {
     return a.s(b)
 }
 
