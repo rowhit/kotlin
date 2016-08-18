@@ -22,8 +22,8 @@ import org.jetbrains.kotlin.codegen.StackValue;
 import org.jetbrains.kotlin.codegen.binding.CalculatedClosure;
 import org.jetbrains.kotlin.codegen.context.EnclosedValueDescriptor;
 import org.jetbrains.kotlin.codegen.state.KotlinTypeMapper;
-import org.jetbrains.kotlin.descriptors.ClassDescriptor;
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor;
+import org.jetbrains.kotlin.descriptors.*;
+import org.jetbrains.kotlin.psi.KtCallableReferenceExpression;
 import org.jetbrains.kotlin.psi.KtExpression;
 import org.jetbrains.kotlin.psi.KtLambdaExpression;
 import org.jetbrains.kotlin.resolve.BindingContext;
@@ -45,13 +45,14 @@ public class LambdaInfo implements LabelOwner {
     public final Set<String> labels;
     private final CalculatedClosure closure;
     public final boolean isCrossInline;
-    private final FunctionDescriptor functionDescriptor;
+    private FunctionDescriptor functionDescriptor;
     private final ClassDescriptor classDescriptor;
     private final Type closureClassType;
 
     private SMAPAndMethodNode node;
     private List<CapturedParamDesc> capturedVars;
     private boolean isBoundCallableReference;
+    private final boolean isPropertyReference;
 
     public LambdaInfo(@NotNull KtExpression expression, @NotNull KotlinTypeMapper typeMapper, boolean isCrossInline) {
         this.isCrossInline = isCrossInline;
@@ -61,6 +62,14 @@ public class LambdaInfo implements LabelOwner {
         this.typeMapper = typeMapper;
         BindingContext bindingContext = typeMapper.getBindingContext();
         functionDescriptor = bindingContext.get(BindingContext.FUNCTION, this.expression);
+        if (functionDescriptor == null && expression instanceof KtCallableReferenceExpression) {
+            VariableDescriptor variableDescriptor = bindingContext.get(BindingContext.VARIABLE, this.expression);
+            assert variableDescriptor instanceof PropertyDescriptor : "Reference expression not resolved to property descriptor: " + expression.getText();
+            functionDescriptor = ((PropertyDescriptor) variableDescriptor).getGetter();
+            isPropertyReference = true;
+        } else {
+            isPropertyReference = false;
+        }
         assert functionDescriptor != null : "Function is not resolved to descriptor: " + expression.getText();
 
         classDescriptor = anonymousClassForCallable(bindingContext, functionDescriptor);

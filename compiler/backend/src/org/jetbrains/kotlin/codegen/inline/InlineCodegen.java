@@ -372,7 +372,8 @@ public class InlineCodegen extends CallGenerator {
             smap = createSMAPWithDefaultMapping(inliningFunction, parentCodegen.getOrCreateSourceMapper().getResultMappings());
         }
         else {
-            smap = generateMethodBody(maxCalcAdapter, callableDescriptor, methodContext, inliningFunction, jvmSignature, false, codegen);
+            smap = generateMethodBody(maxCalcAdapter, callableDescriptor, methodContext, inliningFunction, jvmSignature, codegen, false,
+                                      false);
         }
         maxCalcAdapter.visitMaxs(-1, -1);
         maxCalcAdapter.visitEnd();
@@ -516,7 +517,7 @@ public class InlineCodegen extends CallGenerator {
 
         MethodVisitor adapter = InlineCodegenUtil.wrapWithMaxLocalCalc(methodNode);
 
-        SMAP smap = generateMethodBody(adapter, descriptor, context, declaration, jvmMethodSignature, true, codegen);
+        SMAP smap = generateMethodBody(adapter, descriptor, context, declaration, jvmMethodSignature, codegen, true, false);
         adapter.visitMaxs(-1, -1);
         return new SMAPAndMethodNode(methodNode, smap);
     }
@@ -528,8 +529,9 @@ public class InlineCodegen extends CallGenerator {
             @NotNull MethodContext context,
             @NotNull KtExpression expression,
             @NotNull JvmMethodSignature jvmMethodSignature,
+            @NotNull ExpressionCodegen codegen,
             boolean isLambda,
-            @NotNull ExpressionCodegen codegen
+            boolean isPropertyReference
     ) {
         GenerationState state = codegen.getState();
 
@@ -549,13 +551,26 @@ public class InlineCodegen extends CallGenerator {
                     ? codegen.getState().getTypeMapper().mapType(codegen.getBindingContext().getType(receiverExpression))
                     : null;
 
-            strategy = new FunctionReferenceGenerationStrategy(
-                    state,
-                    descriptor,
-                    CallUtilKt.getResolvedCallWithAssert(callableReferenceExpression.getCallableReference(), codegen.getBindingContext()),
-                    receiverValue,
-                    null
-            );
+            if (isPropertyReference) {
+                strategy = new FunctionReferenceGenerationStrategy(
+                        state,
+                        descriptor,
+                        CallUtilKt
+                                .getResolvedCallWithAssert(callableReferenceExpression.getCallableReference(), codegen.getBindingContext()),
+                        receiverValue,
+                        null
+                );
+            }
+            else {
+                strategy = new FunctionReferenceGenerationStrategy(
+                        state,
+                        descriptor,
+                        CallUtilKt
+                                .getResolvedCallWithAssert(callableReferenceExpression.getCallableReference(), codegen.getBindingContext()),
+                        receiverValue,
+                        null
+                );
+            }
         }
         else {
             strategy = new FunctionGenerationStrategy.FunctionDefault(state, (KtDeclarationWithBody) expression);
@@ -751,9 +766,9 @@ public class InlineCodegen extends CallGenerator {
         KtExpression deparenthesized = KtPsiUtil.deparenthesize(expression);
 
         if (deparenthesized instanceof KtCallableReferenceExpression) {
-            // TODO: support inline of property references passed to inlinable function parameters
             SimpleFunctionDescriptor functionReference = state.getBindingContext().get(BindingContext.FUNCTION, deparenthesized);
-            if (functionReference == null) return false;
+            VariableDescriptor propertyReference = state.getBindingContext().get(BindingContext.VARIABLE, deparenthesized);
+            if (functionReference == null && propertyReference == null) return false;
         }
 
         return InlineUtil.isInlineLambdaParameter(valueParameterDescriptor) &&
