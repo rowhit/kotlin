@@ -15,6 +15,12 @@
 
 - [`KT-7549`](https://youtrack.jetbrains.com/issue/KT-7549) Allow to evaluate kotlin expressions in Java files
 
+## 1.0.5
+
+### IDE
+
+- [`KT-9125`](https://youtrack.jetbrains.com/issue/KT-9125) Support Type Hierarchy on references inside of super type call entries
+
 ## 1.0.4
 
 ### Compiler
