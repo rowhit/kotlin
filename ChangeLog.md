@@ -21,6 +21,10 @@
 
 - [`KT-9125`](https://youtrack.jetbrains.com/issue/KT-9125) Support Type Hierarchy on references inside of super type call entries
 
+#### Refactorings
+
+- [`KT-13535`](https://youtrack.jetbrains.com/issue/KT-13535) Pull Up: Remove visibility modifiers on adding 'override'
+
 ## 1.0.4
 
 ### Compiler
