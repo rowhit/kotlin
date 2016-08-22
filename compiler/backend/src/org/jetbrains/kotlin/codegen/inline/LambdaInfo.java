@@ -23,10 +23,12 @@ import org.jetbrains.kotlin.codegen.binding.CalculatedClosure;
 import org.jetbrains.kotlin.codegen.context.EnclosedValueDescriptor;
 import org.jetbrains.kotlin.codegen.state.KotlinTypeMapper;
 import org.jetbrains.kotlin.descriptors.*;
+import org.jetbrains.kotlin.psi.Call;
 import org.jetbrains.kotlin.psi.KtCallableReferenceExpression;
 import org.jetbrains.kotlin.psi.KtExpression;
 import org.jetbrains.kotlin.psi.KtLambdaExpression;
 import org.jetbrains.kotlin.resolve.BindingContext;
+import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes;
 import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.org.objectweb.asm.commons.Method;
@@ -64,8 +66,11 @@ public class LambdaInfo implements LabelOwner {
         functionDescriptor = bindingContext.get(BindingContext.FUNCTION, this.expression);
         if (functionDescriptor == null && expression instanceof KtCallableReferenceExpression) {
             VariableDescriptor variableDescriptor = bindingContext.get(BindingContext.VARIABLE, this.expression);
-            assert variableDescriptor instanceof PropertyDescriptor : "Reference expression not resolved to property descriptor: " + expression.getText();
-            functionDescriptor = ((PropertyDescriptor) variableDescriptor).getGetter();
+            Call call = bindingContext.get(BindingContext.CALL, ((KtCallableReferenceExpression) expression).getCallableReference());
+            ResolvedCall<?> resolvedCall = bindingContext.get(BindingContext.RESOLVED_CALL, call);
+            assert variableDescriptor instanceof VariableDescriptorWithAccessors :
+                    "Reference expression not resolved to variable descriptor with accessors: " + expression.getText();
+            functionDescriptor = ((VariableDescriptorWithAccessors) variableDescriptor).getGetter();
             isPropertyReference = true;
         } else {
             isPropertyReference = false;
