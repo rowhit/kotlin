@@ -1108,10 +1108,6 @@ fun main(args: Array<String>) {
         testClass<AbstractBoxJsTest>() {
             model("box/", pattern = "^([^_](.+))\\.kt$")
         }
-
-        testClass<AbstractReservedWordTest>() {
-            model("reservedWords/cases")
-        }
     }
 
     testGroup("js/js.tests/test", "compiler/testData") {
