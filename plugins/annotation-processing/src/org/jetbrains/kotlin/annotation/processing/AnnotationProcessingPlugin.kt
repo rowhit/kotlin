@@ -126,6 +126,9 @@ class AnnotationProcessingComponentRegistrar : ComponentRegistrar {
         Extensions.getRootArea().getExtensionPoint(DefaultErrorMessages.Extension.EP_NAME)
                 .registerExtension(DefaultErrorMessagesAnnotationProcessing())
         
+        generatedOutputDirFile.deleteRecursively()
+        generatedOutputDirFile.mkdirs()
+        
         val annotationProcessingExtension = ClasspathBasedAnnotationProcessingExtension(
                 classpath, generatedOutputDirFile, classesOutputDir, javaRoots, verboseOutput, incrementalDataFile)
         
