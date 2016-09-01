@@ -70,7 +70,7 @@ class LazyJavaClassMemberScope(
     override fun computeMemberIndex(): MemberIndex {
         return object : ClassMemberIndex(jClass, { !it.isStatic }) {
             // For SAM-constructors
-            override fun getMethodNames(nameFilter: (Name) -> Boolean): Collection<Name>
+            override fun getMethodNames(nameFilter: (Name) -> Boolean): Set<Name>
                     = super.getMethodNames(nameFilter) + getClassNames(DescriptorKindFilter.CLASSIFIERS, nameFilter)
         }
     }
@@ -627,8 +627,8 @@ class LazyJavaClassMemberScope(
         if (jNestedClass == null) {
             val field = enumEntryIndex()[name]
             if (field != null) {
-                val enumMemberNames: NotNullLazyValue<Collection<Name>> = c.storageManager.createLazyValue {
-                    memberIndex().getAllFieldNames() + memberIndex().getMethodNames({ true })
+                val enumMemberNames: NotNullLazyValue<Set<Name>> = c.storageManager.createLazyValue {
+                    (memberIndex().getAllFieldNames() + memberIndex().getMethodNames({ true })).toSet()
                 }
                 EnumEntrySyntheticClassDescriptor.create(
                         c.storageManager, ownerDescriptor, name, enumMemberNames, c.resolveAnnotations(field),
@@ -663,7 +663,7 @@ class LazyJavaClassMemberScope(
     override fun getClassNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<Name>
             = nestedClassIndex().keys + enumEntryIndex().keys
 
-    override fun computePropertyNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<Name> {
+    override fun computePropertyNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Set<Name> {
         if (jClass.isAnnotationType) return memberIndex().getMethodNames(nameFilter)
         val result = LinkedHashSet(memberIndex().getAllFieldNames())
         return ownerDescriptor.typeConstructor.supertypes.flatMapTo(result) { supertype ->

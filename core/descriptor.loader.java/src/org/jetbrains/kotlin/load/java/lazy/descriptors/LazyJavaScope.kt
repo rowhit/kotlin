@@ -221,18 +221,18 @@ abstract class LazyJavaScope(protected val c: LazyJavaResolverContext) : MemberS
         return functions(name)
     }
 
-    private val functionNamesLazy by c.storageManager.createLazyValue { computeFunctionNames(DescriptorKindFilter.ALL, alwaysTrue()) }
-    private val propertyNamesLazy by c.storageManager.createLazyValue { computePropertyNames(DescriptorKindFilter.ALL, alwaysTrue()) }
+    private val functionNamesLazy by c.storageManager.createLazyValue { computeFunctionNames(DescriptorKindFilter.FUNCTIONS, alwaysTrue()) }
+    private val propertyNamesLazy by c.storageManager.createLazyValue { computePropertyNames(DescriptorKindFilter.VARIABLES, alwaysTrue()) }
 
     override fun getFunctionNames() = functionNamesLazy
     override fun getPropertyNames() = propertyNamesLazy
 
-    protected open fun computeFunctionNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<Name>
+    protected open fun computeFunctionNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Set<Name>
             = memberIndex().getMethodNames(nameFilter)
 
     protected abstract fun computeNonDeclaredProperties(name: Name, result: MutableCollection<PropertyDescriptor>)
 
-    protected abstract fun computePropertyNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<Name>
+    protected abstract fun computePropertyNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Set<Name>
 
     private val properties = c.storageManager.createMemoizedFunction {
         name: Name ->

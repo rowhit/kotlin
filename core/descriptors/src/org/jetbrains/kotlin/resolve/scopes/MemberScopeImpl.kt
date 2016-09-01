@@ -32,15 +32,15 @@ abstract class MemberScopeImpl : MemberScope {
     override fun getContributedDescriptors(kindFilter: DescriptorKindFilter,
                                            nameFilter: (Name) -> Boolean): Collection<DeclarationDescriptor> = emptyList()
 
-    override fun getFunctionNames(): Collection<Name> =
+    override fun getFunctionNames(): Set<Name> =
             getContributedDescriptors(
                     DescriptorKindFilter.FUNCTIONS, alwaysTrue()
-            ).filterIsInstance<SimpleFunctionDescriptor>().map { it.name }
+            ).filterIsInstance<SimpleFunctionDescriptor>().mapTo(mutableSetOf()) { it.name }
 
-    override fun getPropertyNames(): Collection<Name> =
+    override fun getPropertyNames(): Set<Name> =
             getContributedDescriptors(
                     DescriptorKindFilter.VARIABLES, alwaysTrue()
-            ).filterIsInstance<VariableDescriptor>().map { it.name }
+            ).filterIsInstance<VariableDescriptor>().mapTo(mutableSetOf()) { it.name }
 
     // This method should not be implemented here by default: every scope class has its unique structure pattern
     abstract override fun printScopeStructure(p: Printer)

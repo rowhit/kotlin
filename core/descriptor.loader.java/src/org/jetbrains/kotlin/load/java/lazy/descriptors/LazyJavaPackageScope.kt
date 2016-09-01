@@ -134,21 +134,21 @@ class LazyJavaPackageScope(
 
     override fun computeMemberIndex(): MemberIndex = object : MemberIndex by EMPTY_MEMBER_INDEX {
         // For SAM-constructors
-        override fun getMethodNames(nameFilter: (Name) -> Boolean): Collection<Name> = getClassNames(DescriptorKindFilter.CLASSIFIERS, nameFilter)
+        override fun getMethodNames(nameFilter: (Name) -> Boolean): Set<Name> = getClassNames(DescriptorKindFilter.CLASSIFIERS, nameFilter)
     }
 
-    override fun getClassNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<Name> {
+    override fun getClassNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Set<Name> {
         // neither objects nor enum members can be in java package
-        if (!kindFilter.acceptsKinds(DescriptorKindFilter.NON_SINGLETON_CLASSIFIERS_MASK)) return listOf()
+        if (!kindFilter.acceptsKinds(DescriptorKindFilter.NON_SINGLETON_CLASSIFIERS_MASK)) return emptySet()
 
-        return jPackage.getClasses(nameFilter).mapNotNull { klass ->
+        return jPackage.getClasses(nameFilter).mapNotNullTo(mutableSetOf()) { klass ->
             if (klass.lightClassOriginKind == LightClassOriginKind.SOURCE) null else klass.name
         }
     }
 
-    override fun computeFunctionNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<Name> {
+    override fun computeFunctionNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Set<Name> {
         // optimization: only SAM-constructors may exist in java package
-        if (kindFilter.excludes.contains(SamConstructorDescriptorKindExclude)) return listOf()
+        if (kindFilter.excludes.contains(SamConstructorDescriptorKindExclude)) return emptySet()
 
         return super.computeFunctionNames(kindFilter, nameFilter)
     }
@@ -159,7 +159,7 @@ class LazyJavaPackageScope(
         }?.let { result.add(it) }
     }
 
-    override fun computePropertyNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean) = listOf<Name>()
+    override fun computePropertyNames(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean) = emptySet<Name>()
 
     // we don't use implementation from super which caches all descriptors and does not use filters
     override fun getContributedDescriptors(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): Collection<DeclarationDescriptor> {

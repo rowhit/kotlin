@@ -208,14 +208,14 @@ public class ErrorUtils {
 
         @NotNull
         @Override
-        public Collection<Name> getFunctionNames() {
-            return emptyList();
+        public Set<Name> getFunctionNames() {
+            return Collections.emptySet();
         }
 
         @NotNull
         @Override
-        public Collection<Name> getPropertyNames() {
-            return emptyList();
+        public Set<Name> getPropertyNames() {
+            return Collections.emptySet();
         }
 
         @NotNull
@@ -276,13 +276,13 @@ public class ErrorUtils {
 
         @NotNull
         @Override
-        public Collection<Name> getFunctionNames() {
+        public Set<Name> getFunctionNames() {
             throw new IllegalStateException();
         }
 
         @NotNull
         @Override
-        public Collection<Name> getPropertyNames() {
+        public Set<Name> getPropertyNames() {
             throw new IllegalStateException();
         }
 
