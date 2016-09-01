@@ -129,7 +129,7 @@ object KotlinToJVMBytecodeCompiler {
 
         val targetDescription = "in targets [" + chunk.joinToString { input -> input.getModuleName() + "-" + input.getModuleType() } + "]"
         var result = analyze(environment, targetDescription)
-        
+
         if (result is AnalysisResult.RetryWithAdditionalJavaRoots) {
             val oldReadOnlyValue = projectConfiguration.isReadOnly
             projectConfiguration.isReadOnly = false
@@ -137,17 +137,17 @@ object KotlinToJVMBytecodeCompiler {
             projectConfiguration.isReadOnly = oldReadOnlyValue
 
             environment.updateClasspath(result.additionalJavaRoots.map { JavaSourceRoot(it, null) })
- 
+
             // Clear package caches (see KotlinJavaPsiFacade)
             (PsiManager.getInstance(environment.project).modificationTracker as? PsiModificationTrackerImpl)?.incCounter()
-            
+
             // Clear all diagnostic messages
             projectConfiguration[CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY]?.clear()
-            
+
             // Repeat analysis with additional Java roots (kapt generated sources)
             result = analyze(environment, targetDescription)
         }
-        
+
         if (result == null || !result.shouldGenerateCode) return false
 
         ProgressIndicatorAndCompilationCanceledStatus.checkCanceled()
@@ -426,7 +426,7 @@ object KotlinToJVMBytecodeCompiler {
         K2JVMCompiler.reportPerf(environment.configuration, message)
 
         val analysisResult = analyzerWithCompilerReport.analysisResult
-        
+
         return if (!analyzerWithCompilerReport.hasErrors() || analysisResult is AnalysisResult.RetryWithAdditionalJavaRoots)
             analysisResult
         else
