@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.asJava.FilteredJvmDiagnostics
 import org.jetbrains.kotlin.backend.common.output.OutputFileCollection
 import org.jetbrains.kotlin.backend.common.output.SimpleOutputFileCollection
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.messages.*
@@ -43,6 +44,7 @@ import org.jetbrains.kotlin.codegen.state.GenerationStateEventCallback
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.addKotlinSourceRoots
+import org.jetbrains.kotlin.context.GlobalContext
 import org.jetbrains.kotlin.fileClasses.JvmFileClassUtil
 import org.jetbrains.kotlin.idea.MainFunctionDetector
 import org.jetbrains.kotlin.load.kotlin.ModuleVisibilityManager
@@ -387,6 +389,9 @@ object KotlinToJVMBytecodeCompiler {
         return generate(environment, environment.configuration, result, environment.getSourceFiles(), null)
     }
 
+    val globalContext = GlobalContext()
+    var builtInsPerJdk = hashMapOf<String, KotlinBuiltIns>()
+
     private fun analyze(environment: KotlinCoreEnvironment, targetDescription: String?): AnalysisResult? {
         val collector = environment.messageCollector
 
@@ -396,8 +401,23 @@ object KotlinToJVMBytecodeCompiler {
                 environment.getSourceFiles(), object : AnalyzerWithCompilerReport.Analyzer {
             override fun analyze(): AnalysisResult {
                 val sharedTrace = CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace()
+                val jdk = environment.configuration.getList(JVMConfigurationKeys.CONTENT_ROOTS).first() as JvmContentRoot
+
+                val absolutePath = jdk.file.absolutePath
                 val moduleContext =
-                        TopDownAnalyzerFacadeForJVM.createContextWithSealedModule(environment.project, environment.configuration)
+                        if (absolutePath in builtInsPerJdk) {
+                            TopDownAnalyzerFacadeForJVM.createContextWithSealedModule(
+                                    environment.project, environment.configuration, globalContext, builtInsPerJdk[absolutePath]!!)
+                        }
+                        else {
+
+                            val x = TopDownAnalyzerFacadeForJVM.createContextWithSealedModule(
+                                    environment.project, environment.configuration, globalContext)
+
+                            builtInsPerJdk[absolutePath] = x.builtIns
+
+                            x
+                        }
 
                 return TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
                         moduleContext,

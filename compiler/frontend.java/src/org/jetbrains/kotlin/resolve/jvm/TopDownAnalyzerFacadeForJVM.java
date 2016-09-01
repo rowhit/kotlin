@@ -20,14 +20,12 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.search.GlobalSearchScope;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.analyzer.AnalysisResult;
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns;
 import org.jetbrains.kotlin.config.CommonConfigurationKeys;
 import org.jetbrains.kotlin.config.CompilerConfiguration;
 import org.jetbrains.kotlin.config.JVMConfigurationKeys;
 import org.jetbrains.kotlin.config.LanguageVersion;
-import org.jetbrains.kotlin.context.ContextKt;
-import org.jetbrains.kotlin.context.ModuleContext;
-import org.jetbrains.kotlin.context.MutableModuleContext;
-import org.jetbrains.kotlin.context.ProjectContext;
+import org.jetbrains.kotlin.context.*;
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor;
 import org.jetbrains.kotlin.descriptors.PackageFragmentProvider;
 import org.jetbrains.kotlin.descriptors.PackagePartProvider;
@@ -155,6 +153,39 @@ public enum TopDownAnalyzerFacadeForJVM {
                 JvmPlatform.INSTANCE, builtIns
         );
         builtIns.setOwnerModuleDescriptor(context.getModule());
+        context.setDependencies(context.getModule(), context.getBuiltIns().getBuiltInsModule());
+        return context;
+    }
+
+
+    @NotNull
+    public static MutableModuleContext createContextWithSealedModule(
+            @NotNull Project project, @NotNull CompilerConfiguration configuration, @NotNull GlobalContext globalContext
+    ) {
+        ProjectContext projectContext = ContextKt.withProject(globalContext, project);
+        JvmBuiltIns builtIns = new JvmBuiltIns(projectContext.getStorageManager());
+        MutableModuleContext context = ContextKt.ContextForNewModule(
+                projectContext, Name.special("<" + configuration.getNotNull(CommonConfigurationKeys.MODULE_NAME) + ">"),
+                JvmPlatform.INSTANCE, builtIns
+        );
+        builtIns.setOwnerModuleDescriptor(context.getModule());
+        context.setDependencies(context.getModule(), context.getBuiltIns().getBuiltInsModule());
+        return context;
+    }
+
+
+    @NotNull
+    public static MutableModuleContext createContextWithSealedModule(
+            @NotNull Project project,
+            @NotNull CompilerConfiguration configuration,
+            @NotNull GlobalContext globalContext,
+            @NotNull KotlinBuiltIns builtIns
+    ) {
+        ProjectContext projectContext = ContextKt.withProject(globalContext, project);
+        MutableModuleContext context = ContextKt.ContextForNewModule(
+                projectContext, Name.special("<" + configuration.getNotNull(CommonConfigurationKeys.MODULE_NAME) + ">"),
+                JvmPlatform.INSTANCE, builtIns
+        );
         context.setDependencies(context.getModule(), context.getBuiltIns().getBuiltInsModule());
         return context;
     }
